@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MAX_EDGES 10001
 
@@ -61,7 +62,7 @@ int binary_search(edge e) {//이진 탐색. edges 배열에서 e보다 첫 번�
     return r;
 }
 
-edge delete_edge(int u, int v) {//(u, v) edge를 삭제
+void delete_edge(int u, int v) {//(u, v) edge를 삭제
     if(u > v) swap_num(&u, &v);//make u < v
 
     int posIndex = pos[v][u];//삭제할 요소의 인덱스
@@ -75,7 +76,9 @@ edge delete_edge(int u, int v) {//(u, v) edge를 삭제
     pos[v][u] = -1;//delete
 }   
 
-void insert_edge(edge e) {//간선 e 삽입
+void insert_edge(int u, int v, int w) {//간선 삽입
+    edge e = {u, v, w};
+
     if(size == 0) {//if edges are empty,
         edges[size++] = e;
         return; 
@@ -96,14 +99,9 @@ void insert_edge(edge e) {//간선 e 삽입
 
 void change_weight(int u, int v, int w) {//(u, v) edge 가중치를 w로 변경
     if(u > v) swap_num(&u, &v);//make u < v
-
-    int posIndex = pos[v][u];
-
-    edge temp = {u, v, edges[posIndex].cost};
     
     delete_edge(u, v);
-    temp.cost = w;//가중치 변경
-    insert_edge(temp);
+    insert_edge(u, v, w);
 }
 
 //Below functions are about allocating & destroying 
@@ -177,22 +175,33 @@ int kruskal_algorithm() {//단, 이미 간선들이 heapify되었음을 가정
 }
 
 int main() {
-    scanf("%d %d", &V, &E);
+    FILE* fr = fopen("mst.in", "r");
+    FILE* fw = fopen("mst.out", "w");
+
+    fscanf(fr, "%d", &V);
 
     initalize();//init
 
-    for(int i = 0; i < E; i++) {
-        int u, v, cost;
+    char instruction[50];
 
-        scanf("%d %d %d", &u, &v, &cost);
-
-        if(u > v) swap_num(&u, &v);//make u < v
-
-        edge temp = {u, v, cost};
-        insert_edge(temp);//insert edge
+    int u, v, weight;
+    while(fscanf(fr, "%s", instruction)!=EOF) {
+        if (strcmp(instruction, "insertEdge") == 0) {
+            fscanf(fr, "%d %d %d", &u, &v, &weight);
+            if(u > v) swap_num(&u, &v);//make u < v
+            insert_edge(u, v, weight);
+        } else if (strcmp(instruction, "deleteEdge") == 0) {
+            fscanf(fr, "%d %d", &u, &v);
+            if(u > v) swap_num(&u, &v);//make u < v
+            delete_edge(u, v);
+        } else if (strcmp(instruction, "changeWeight") == 0) {
+            fscanf(fr, "%d %d %d", &u, &v, &weight);
+            if(u > v) swap_num(&u, &v);//make u < v
+            change_weight(u, v, weight);
+        } else if (strcmp(instruction, "findMST") == 0) {
+            fprintf(fw, "%d\n", kruskal_algorithm());
+        }
     }
-
-    printf("%d", kruskal_algorithm());//calculate total weight of MST
 
     destroy();//free
 
