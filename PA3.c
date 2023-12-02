@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_EDGES 10001
+#define MAX_EDGES 10001//max # of edges
 
 typedef struct {//정렬을 위해 u < v
     int u;
@@ -12,10 +12,10 @@ typedef struct {//정렬을 위해 u < v
 
 int V, E;
 edge edges[MAX_EDGES];//간선 데이터들을 저장
-int* parent;
-int* rank;
 
 int** pos;//간선들의 위치 정보 저장 (만약, 없다면 '-1' 반환)
+int* parent;
+int* rank;
 
 int size = 0;//저장되어 있는 간선의 수 저장
 
@@ -62,10 +62,11 @@ int binary_search(edge e) {//이진 탐색. edges 배열에서 e보다 첫 번�
     return r;
 }
 
+//Belows are about delete, insert, change_weight operations
 void delete_edge(int u, int v) {//(u, v) edge를 삭제
-    if(u > v) swap_num(&u, &v);//make u < v
-
+    if(u == v) return;//handle wrong operation
     int posIndex = pos[v][u];//삭제할 요소의 인덱스
+    if(posIndex < 0) return;//if there is no edge, return
 
     for(int i = posIndex; i < size - 1; i++) {
         edges[i] = edges[i+1];
@@ -79,12 +80,16 @@ void delete_edge(int u, int v) {//(u, v) edge를 삭제
 void insert_edge(int u, int v, int w) {//간선 삽입
     edge e = {u, v, w};
 
+    if(u == v) return;//handle wrong operation
+    if(pos[v][u] >= 0) return;//if there already exists, return
+    
     if(size == 0) {//if edges are empty,
         edges[size++] = e;
+        pos[v][u] = 0;
         return; 
     }
 
-    int posIndex = binary_search(e);
+    int posIndex = binary_search(e);//삽입될 위치 찾기
 
     size++;
     for(int i = size - 1; i > posIndex; i--) {
@@ -93,19 +98,20 @@ void insert_edge(int u, int v, int w) {//간선 삽입
     }
 
     edges[posIndex] = e;
-
-    pos[e.v][e.u] = posIndex;//update pos table
+    pos[v][u] = posIndex;//update pos table
 }
 
 void change_weight(int u, int v, int w) {//(u, v) edge 가중치를 w로 변경
-    if(u > v) swap_num(&u, &v);//make u < v
+    if(u == v) return;//handle wrong operation
+    if(pos[v][u] < 0) return;//if there is no edge, return
     
     delete_edge(u, v);
     insert_edge(u, v, w);
 }
 
-//Below functions are about allocating & destroying 
-void initalize() {
+
+//Below functions are about initializing & destroying
+void initalize_first() {//just called only once
     //initialize parent
     parent = (int*)malloc((V+1)*sizeof(int));//노드 번호와 인덱스를 일치시키기 위해 V + 1
     for(int i = 1; i <= V; i++) parent[i] = i;
@@ -118,15 +124,20 @@ void initalize() {
     pos = (int**)malloc((V+1) * sizeof(int*));
     for(int i = 0; i < V+1; i++) pos[i] = (int*)malloc((i+1)*sizeof(int));//[u][v] -> u > v
 
-    for(int i = 0; i <= V; i++) for(int j = 0; j <= i; j++) pos[i][j] = -1;
+    for(int i = 1; i <= V; i++) for(int j = 1; j <= i; j++) pos[i][j] = -1;
 }
 
 void destroy() {
-    free(parent);
-    free(rank);
     for(int i = 0; i < V+1; i++) free(pos[i]);
     free(pos);
 }
+
+void initialize() {
+    for(int i = 1; i <= V; i++) parent[i] = i;
+    for(int i = 1; i<= V; i++) rank[i] = 1;
+}
+//finish implementing initializing & destroying functions
+
 
 
 //Belows are Disjoint-Union-Set data structure implementation
@@ -157,8 +168,9 @@ void union_set(int x, int y) {//두 그래프 합치기
 //finish implementing DUS data structure
 
 
-int kruskal_algorithm() {//단, 이미 간선들이 heapify되었음을 가정
+int kruskal_algorithm() {//단, 이미 간선들이 정렬되어 있음을 가정
     int total_weight = 0;//total weight
+    int cnt = 0;
 
     for(int i = 0; i < size; i++) {
         int cost = edges[i].cost;
@@ -168,8 +180,11 @@ int kruskal_algorithm() {//단, 이미 간선들이 heapify되었음을 가정
         if(find_root(u) != find_root(v)) {
             union_set(u, v);
             total_weight += cost;
+            cnt++;
         }
     }
+
+    if(cnt != V - 1) return -1;//MST 간선의 개수가 V - 1이 아니라면 정상적으로 생성 X
 
     return total_weight;
 }
@@ -180,26 +195,32 @@ int main() {
 
     fscanf(fr, "%d", &V);
 
-    initalize();//init
+    initalize_first();//init first time
 
     char instruction[50];
 
     int u, v, weight;
     while(fscanf(fr, "%s", instruction)!=EOF) {
-        if (strcmp(instruction, "insertEdge") == 0) {
+        if (strcmp(instruction, "insertEdge") == 0) {//insert edge
             fscanf(fr, "%d %d %d", &u, &v, &weight);
             if(u > v) swap_num(&u, &v);//make u < v
             insert_edge(u, v, weight);
-        } else if (strcmp(instruction, "deleteEdge") == 0) {
+        } 
+        else if (strcmp(instruction, "deleteEdge") == 0) {//delete edge
             fscanf(fr, "%d %d", &u, &v);
             if(u > v) swap_num(&u, &v);//make u < v
             delete_edge(u, v);
-        } else if (strcmp(instruction, "changeWeight") == 0) {
+        } 
+        else if (strcmp(instruction, "changeWeight") == 0) {//change weight
             fscanf(fr, "%d %d %d", &u, &v, &weight);
             if(u > v) swap_num(&u, &v);//make u < v
             change_weight(u, v, weight);
-        } else if (strcmp(instruction, "findMST") == 0) {
-            fprintf(fw, "%d\n", kruskal_algorithm());
+        } 
+        else if (strcmp(instruction, "findMST") == 0) {//calculate MST
+            int result = kruskal_algorithm();
+            if(result >= 0) fprintf(fw, "%d\n", result);
+            else fprintf(fw, "Disconnected\n");
+            initialize();//initialize parent, rank
         }
     }
 
